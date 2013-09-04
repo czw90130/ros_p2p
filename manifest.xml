@@ -1,0 +1,17 @@
+<package>
+  <description brief="ros_p2p">
+
+     ros_p2p
+
+  </description>
+  <author>Walter_CHU</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/ros_p2p</url>
+  <depend package="std_msgs"/>
+  <depend package="rospy"/>
+  <depend package="roscpp"/>
+
+</package>
+
+
