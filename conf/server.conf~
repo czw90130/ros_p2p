@@ -1,7 +1,6 @@
 # server.conf
-to              = 127.0.0.1:1194
-net_type        = 7
+net_type        = 5
 stun_server     = stun.l.google.com:19302
 gtalk_server    = talk.google.com:443
 i               = robot.zac
-allowed_user    = czw90130
+allowed_user    = robot.zay

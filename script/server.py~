@@ -13,17 +13,20 @@ import common
 from stunclient import *
 from parseconf import *
 
+import sys
+
 # global messages list
 messages = []
+sub_message = ''
 # global varibles
 quitNow = False
 
 class ServerConf(ParseConf):
     '''server configuration'''
-    def getToAddr(self):
-        addr = self.getValue('to')
-        (h, _, p) = addr.partition(':')
-        return (h, int(p))
+    #def getToAddr(self):
+    #    addr = self.getValue('to')
+    #    (h, _, p) = addr.partition(':')
+    #    return (h, int(p))
 
     def getNetType(self):
         t = self.getValue('net_type')
@@ -68,8 +71,8 @@ def xmppMessageCB(cnx, msg):
 
 def xmppListen(gtalkServerAddr, user, passwd):
     cnx = xmpp.Client('gmail.com', debug=[])
-    cnx.connect(server=gtalkServerAddr)
-    cnx.auth(user, passwd, 'UDPonNAT_Server')
+    cnx.connect()
+    cnx.auth(user, passwd)
     cnx.sendInitPresence()
     cnx.RegisterHandler('message', xmppMessageCB)
     return cnx
@@ -100,12 +103,16 @@ class TransferError(WorkerError):
 class WorkerThread(Thread):
     '''worker thread'''
     # srcUser without '/'
-    def __init__(self, toAddr, i, myNetType, iQueue, oQueue, sessKey, \
-                 srcNetType, srcAddr, srcUser, stunServerAddr):
+    #def __init__(self, toAddr, i, myNetType, iQueue, oQueue, sessKey, \
+    #             srcNetType, srcAddr, srcUser, stunServerAddr):
+    def __init__(self, i, myNetType, pubQueue, subQueue, iQueue, oQueue, sessKey, \
+                     srcNetType, srcAddr, srcUser, stunServerAddr):
         Thread.__init__(self)
-        self.toAddr = toAddr
+        #self.toAddr = toAddr
         self.i = i
         self.myNetType = myNetType 
+        self.subQueue = subQueue
+        self.pubQueue = pubQueue
         self.iQueue = iQueue
         self.oQueue = oQueue
         self.sessKey = sessKey 
@@ -142,7 +149,7 @@ class WorkerThread(Thread):
 
     def prepare(self):
         # prepare for establish new connection
-        self.toSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+        #self.toSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
         self.fromSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
         # MUST settimeout before call getMappedAddr
         self.fromSock.settimeout(1)
@@ -206,12 +213,13 @@ class WorkerThread(Thread):
             pass
         # non-blocking IO
         self.fromSock.setblocking(False)
-        self.toSock.setblocking(False)
+        #self.toSock.setblocking(False)
         lastCheck = time.time()
         # transfer
         while True:
             # check to/from socket
-            (rs, _, es) = select.select([self.fromSock, self.toSock], [], [], 1)
+            #(rs, _, es) = select.select([self.fromSock, self.toSock], [], [], 1)
+            (rs, _, es) = select.select([self.fromSock], [], [], 1)
             if len(es) != 0:
                 # error
                 raise TransferError('Select error')
@@ -228,18 +236,29 @@ class WorkerThread(Thread):
                             raise e
                         # EAGAIN
                         break
-                    self.toSock.sendto(d, self.toAddr)
-            if self.toSock in rs:
-                # toSock is ready for read
-                while True:
-                    try:
-                        (d, _) = self.toSock.recvfrom(2048)
-                    except socket.error, e:
-                        if e[0] != errno.EAGAIN and e[0] != 10035:
-                            raise e
-                        # EAGAIN
-                        break
+                    #self.toSock.sendto(d, self.toAddr)
+                    self.pubQueue.put(d)
+
+
+            #if self.toSock in rs:
+            #    # toSock is ready for read
+            #    while True:
+            #        try:
+            #            (d, _) = self.toSock.recvfrom(2048)
+            #        except socket.error, e:
+            #            if e[0] != errno.EAGAIN and e[0] != 10035:
+            #                raise e
+            #            # EAGAIN
+            #            break
+            #        self.fromSock.sendto(d, self.srcAddr)
+
+            # for each message
+            while True:
+                try:
+                    d = self.subQueue.get_nowait()
                     self.fromSock.sendto(d, self.srcAddr)
+                except Queue.Empty:
+                    break
             # check iQueue
             t = time.time()
             if t - lastCheck >= 1:
@@ -250,7 +269,7 @@ class WorkerThread(Thread):
             # quit?
             if quitNow:
                 break
-
+        
     # m is the actual message will be sent
     def sendXmppMessage(self, m):
         self.oQueue.put(m)
@@ -612,6 +631,8 @@ def processInputMessages(sc, ms, ss, stunServerAddr):
             # client hello
             iq = Queue.Queue()
             oq = Queue.Queue()
+            pq = Queue.Queue()
+            sq = Queue.Queue()
             # get a new session key
             while True:
                 k = randStr()
@@ -626,10 +647,12 @@ def processInputMessages(sc, ms, ss, stunServerAddr):
                 # invalid ip
                 continue
             p = int(c.split(';')[2].split(':')[1])
-            wt = WorkerThread(sc.getToAddr(), sc.getLoginUser(), sc.getNetType(), \
-                              iq, oq, k, t, (ip, p), u.partition('/')[0], stunServerAddr)
+            #wt = WorkerThread(sc.getToAddr(), sc.getLoginUser(), sc.getNetType(), \
+            #                  iq, oq, k, t, (ip, p), u.partition('/')[0], stunServerAddr)
+            wt = WorkerThread(sc.getLoginUser(), sc.getNetType(), pq, sq,\
+                                  iq, oq, k, t, (ip, p), u.partition('/')[0], stunServerAddr)
             # u include '/'
-            ss[k] = (u, iq, oq)
+            ss[k] = (u, iq, oq, pq, sq)
             wt.start()
         elif re.match(r'^Ack;[A-Z]{2,3};[a-z]{%d}$' % common.SESSION_ID_LENGTH, c): 
             # Ack
@@ -661,14 +684,46 @@ def processOutputMessage(cnx, ss):
             #print 'Output xmpp message:', m
             cnx.send(xmpp.Message(u, m))
 
-def main():
+def processPublishMessage(pub,ss):
+    # for each session
+    for k in ss.keys():
+        (u, _, _,pq) = ss[k]
+        # for each message
+        while True:
+            try:
+                m = pq.get_nowait()
+            except Queue.Empty:
+                break
+            # send
+            #print 'Output xmpp message:', m
+            pub.publish(String(m))
+
+def sub_callback(data):
+    sub_message = str(data)
     
+
+def processSubscribeMessage(m, ss):
+    
+    # for each session
+    for k in ss.keys():
+        (u, _, _, _, sq) = ss[k]
+        sq.put(m)
+
+def main(args):
+    global quitNow
+    
+    pub = rospy.Publisher('output', String)
+    rospy.Subscriber('input', String, sub_callback)
+
     rospy.init_node('p2p_server')
+
+    pre_sub_message = ''
 
     sessions = {}
 
     # open server configuration file
-    serverConf = ServerConf('./server.conf')
+    ind = args[0].rfind('/')
+    serverConf = ServerConf(args[0][0:ind]+'/../conf/server.conf')
     # get network type
     netType = serverConf.getNetType()
     if netType == NET_TYPE_UDP_BLOCKED:
@@ -697,11 +752,20 @@ def main():
                 # process messages
                 processInputMessages(serverConf, messages, sessions, stunServerAddr)
                 processOutputMessage(cnx, sessions)
+                
+                processPublishMessage(pub,sessions)
+                
+                if pre_sub_message != sub_message:
+                    processSubscribeMessage(sub_message, sessions)
+                    pre_sub_message = sub_message
+                    
         except Exception, e:
             print 'Catch exception:', e
 
+    quitNow = True
+
 if __name__ == '__main__':
     try:
-        main()
+        main(sys.argv)
     except rospy.ROSInterruptException:
         pass

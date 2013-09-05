@@ -64,7 +64,7 @@ class ServerConf(ParseConf):
 def xmppMessageCB(cnx, msg):
     u = msg.getFrom()
     m = msg.getBody()
-    #print u, m
+    #print 'From: ',u,'Body: ', m
     if u and m:
         messages.append((str(u).strip(), str(m).strip()))
         #messages.append((unicode(u), unicode(m)))
@@ -72,7 +72,7 @@ def xmppMessageCB(cnx, msg):
 def xmppListen(gtalkServerAddr, user, passwd):
     cnx = xmpp.Client('gmail.com', debug=[])
     cnx.connect()
-    cnx.auth(user, passwd, 'UDPonNAT_Server')
+    cnx.auth(user, passwd)
     cnx.sendInitPresence()
     cnx.RegisterHandler('message', xmppMessageCB)
     return cnx
@@ -286,7 +286,7 @@ class WorkerThread(Thread):
         self.sendXmppMessage('Cannot;%s;%s' % (reason, self.sessKey))
 
     def establishIA(self, addr, sock):
-        #print 'establishIA()'
+        print 'establishIA()'
         self.sendXmppMessage('Do;IA;%s:%d;%s' % (addr[0], addr[1], self.sessKey))
         # wait for udp packet
         sock.settimeout(1)
@@ -307,7 +307,7 @@ class WorkerThread(Thread):
             raise EstablishError('Timeout')
 
     def establishIB(self, sock):
-        #print 'establishIB()'
+        print 'establishIB()'
         # tell client to wait for udp request
         self.sendXmppMessage('Do;IB;%s' % self.sessKey)
         # try to send udp packet
@@ -328,7 +328,7 @@ class WorkerThread(Thread):
             raise EstablishError('Timeout')
 
     def establishIIA(self, addr, sock):
-        #print 'establishIIA()'
+        print 'establishIIA()'
         # punch
         sock.setblocking(True)
         sock.sendto('Punch', self.srcAddr)
@@ -353,7 +353,7 @@ class WorkerThread(Thread):
             raise EstablishError('Timeout')
 
     def establishIIB(self, addr, sock):
-        #print 'establishIIB()'
+        print 'establishIIB()'
         # tell client to punch and wait for udp request
         self.sendXmppMessage('Do;IIB;%s:%d;%s' % (addr[0], addr[1], self.sessKey))
         # wait for Ack
@@ -386,7 +386,7 @@ class WorkerThread(Thread):
             raise EstablishError('Timeout')
 
     def establishIII(self, addr, sock):
-        #print 'establishIII()'
+        print 'establishIII()'
         # punch
         sock.setblocking(True)
         sock.sendto('Punch', self.srcAddr)
@@ -423,7 +423,7 @@ class WorkerThread(Thread):
             raise EstablishError('Timeout')
 
     def establishIVA(self, addr, sock):
-        #print 'establishIVA()'
+        print 'establishIVA()'
         # tell client do IVA
         self.sendXmppMessage('Do;IVA;%s:%d;%s' % (addr[0], addr[1], self.sessKey))
         # wait for Ack
@@ -474,7 +474,7 @@ class WorkerThread(Thread):
             raise EstablishError('Timeout')
 
     def establishIVB(self, addr, sock):
-        #print 'establishIVB()'
+        print 'establishIVB()'
         # new socket
         newSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
         # punch
@@ -506,7 +506,7 @@ class WorkerThread(Thread):
             raise EstablishError('Timeout')
 
     def establishVA(self, addr, sock):
-        #print 'establishVA()'
+        print 'establishVA()'
         # tell client do VA
         self.sendXmppMessage('Do;VA;%s:%d;%s' % (addr[0], addr[1], self.sessKey))
         # wait for client's Ack
@@ -563,7 +563,7 @@ class WorkerThread(Thread):
             raise EstablishError('Failed to try')
 
     def establishVB(self, addr, sock):
-        #print 'establishVB()'
+        print 'establishVB()'
         while True:
             # punch
             sock.setblocking(True)
@@ -581,7 +581,7 @@ class WorkerThread(Thread):
                     break
             else:
                 # timeout
-                raise EstablishError('Timeout')
+                raise EstablishError('Timeout VB')
             # have we received client's hello?
             sock.setblocking(False)
             while True:
@@ -591,6 +591,7 @@ class WorkerThread(Thread):
                     if e[0] != errno.EAGAIN and e[0] != 10035:
                         raise e
                     # EAGAIN
+        
                     break
                 # got some data
                 if fro == self.srcAddr and data == 'Hi;%s' % self.sessKey:
@@ -615,7 +616,7 @@ class WorkerThread(Thread):
         f = urllib2.urlopen('http://udponnat.appspot.com/stat.py?serverType=%d&clientType=%d&digest=%s' % (self.myNetType, self.srcNetType, digest))
 
 def processInputMessages(sc, ms, ss, stunServerAddr):
-    while True:
+    while not quitNow:
         try:
             # FIFO
             (u, c) = ms.pop(0)
@@ -624,9 +625,10 @@ def processInputMessages(sc, ms, ss, stunServerAddr):
         # check client user
         #print 'user:', u
         if u.partition('/')[0] not in sc.getAllowedUser():
+            #print u.partition('/')[0], ' is not allowed user' 
             continue
         # process content 
-        #print 'Input xmpp message:', c
+        print 'Input xmpp message:', c
         if re.match(r'^Hello;\d+;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}$', c):
             # client hello
             iq = Queue.Queue()
@@ -658,7 +660,7 @@ def processInputMessages(sc, ms, ss, stunServerAddr):
             # Ack
             k = c.split(';')[2]
             if k in ss.keys():
-                (mu, iq, _) = ss[k]
+                (mu, iq, _, _, _,) = ss[k]
                 if mu == u:
                     iq.put(c)
         elif re.match(r'^Ack;IVA;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};[a-z]{%d}$' \
@@ -666,14 +668,14 @@ def processInputMessages(sc, ms, ss, stunServerAddr):
             # Ack;IVA
             k = c.split(';')[3]
             if k in ss.keys():
-                (mu, iq, _) = ss[k]
+                (mu, iq, _, _, _) = ss[k]
                 if mu == u:
                     iq.put(c)
 
 def processOutputMessage(cnx, ss):
     # for each session
     for k in ss.keys():
-        (u, _, oq) = ss[k]
+        (u, _, oq, _, _,) = ss[k]
         # for each message
         while True:
             try:
@@ -681,13 +683,13 @@ def processOutputMessage(cnx, ss):
             except Queue.Empty:
                 break
             # send
-            #print 'Output xmpp message:', m
+            print 'Output xmpp message:', m
             cnx.send(xmpp.Message(u, m))
 
 def processPublishMessage(pub,ss):
     # for each session
     for k in ss.keys():
-        (u, _, _,pq) = ss[k]
+        (u, _, _, pq, _,) = ss[k]
         # for each message
         while True:
             try:
@@ -695,7 +697,7 @@ def processPublishMessage(pub,ss):
             except Queue.Empty:
                 break
             # send
-            #print 'Output xmpp message:', m
+            #print 'Output socket message:', m
             pub.publish(String(m))
 
 def sub_callback(data):
@@ -754,12 +756,11 @@ def main(args):
                 processOutputMessage(cnx, sessions)
                 
                 processPublishMessage(pub,sessions)
-                
                 if pre_sub_message != sub_message:
                     processSubscribeMessage(sub_message, sessions)
-                    pre_sub_message = sub_message
-                    
+                    pre_sub_message = sub_message        
         except Exception, e:
+            quitNow = True
             print 'Catch exception:', e
 
     quitNow = True
