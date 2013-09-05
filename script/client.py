@@ -177,6 +177,10 @@ def main(args):
         myip = getIpAddress('wlan0')
         cnx.send(xmpp.Message(serverUser, 'Ack;InL;%s:%d;%s' % (myip, common.DEF_INLAN_PORT,s)))
         # send client hi (udp)
+        address = ('', common.SESSION_ID_LENGTH)
+        toSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        toSock.bind(address)
         toSock.setblocking(True)
         print ip, ':',p
         toSock.sendto('Hi;%s' % s, (ip, p))

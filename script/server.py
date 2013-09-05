@@ -159,6 +159,7 @@ class WorkerThread(Thread):
         # prepare for establish new connection
         #self.toSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
         self.fromSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+        self.fromInLSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # MUST settimeout before call getMappedAddr
         self.fromSock.settimeout(1)
         sc = STUNClient()
@@ -171,7 +172,7 @@ class WorkerThread(Thread):
             #raise EstablishError('Two peers are in the same LAN')
             ip = getIpAddress('wlan0')
             print ip
-            self.establishInL((ip, common.DEF_INLAN_PORT), self.fromSock)
+            self.establishInL((ip, common.DEF_INLAN_PORT), self.fromInLSock)
             
         # opened or fullcone nat?
         elif self.myNetType == NET_TYPE_OPENED \
@@ -302,37 +303,42 @@ class WorkerThread(Thread):
         self.sendXmppMessage('Do;InL;%s:%d;%s' % (addr[0], addr[1], self.sessKey))
         
         # wait for client's Ack
-        ct = time.time()
-        while time.time() - ct < common.TIMEOUT:
-            m = self.waitXmppMessage()
-            if not m:
-                continue
-            # got message
-            if re.match(r'^Ack;InL;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};[a-z]{%d}$' % common.SESSION_ID_LENGTH, m):
-                break
-        else:
-            # timeout
-            raise EstablishError('Timeout Inl')
-        # set new srcAddr
-        ip = m.split(';')[2].split(':')[0]
-        p = int(m.split(';')[2].split(':')[1])
-        try:
-            socket.inet_aton(ip)
-        except socket.error:
-            # invalid ip
-            raise ConnectError('Invalid Client Reply')
+        #ct = time.time()
+        #while time.time() - ct < common.TIMEOUT:
+        #    m = self.waitXmppMessage()
+        #    if not m:
+        #        continue
+        #    # got message
+        #    if re.match(r'^Ack;InL;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};[a-z]{%d}$' % common.SESSION_ID_LENGTH, m):
+        #        break
+        #else:
+        #    # timeout
+        #    raise EstablishError('Timeout Inl')
+        ## set new srcAddr
+        #ip = m.split(';')[2].split(':')[0]
+        #p = int(m.split(';')[2].split(':')[1])
+        #try:
+        #    socket.inet_aton(ip)
+        #except socket.error:
+        #    # invalid ip
+        #    raise ConnectError('Invalid Client Reply')
+        #
+        #print ip, ': ', p
         
-        print ip, ': ', p
         # wait for udp packet
+        address = ('', common.SESSION_ID_LENGTH)
+        sock.bind(address)
         sock.settimeout(1)
         ct = time.time()
         while time.time() - ct < common.TIMEOUT:
             try:
                 (data, fro) = sock.recvfrom(2048)
+                print '?????'
             except socket.timeout:
                 continue
             # got some data
             if data == 'Hi;%s' % self.sessKey:
+                print '!!!!!!!!!!!!!!!!!'
                 sock.setblocking(True)
                 sock.sendto('Welcome;%s' % self.sessKey, fro)
                 self.srcAddr = fro
