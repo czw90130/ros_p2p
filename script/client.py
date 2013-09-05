@@ -20,14 +20,6 @@ import sys
 messages = []
 sub_message = ''
 
-def getIpAddress(ifname):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    return socket.inet_ntoa(fcntl.ioctl(
-            s.fileno(),
-            0x8915,  # SIOCGIFADDR
-            struct.pack('256s', ifname[:15])
-            )[20:24])
-
 class ClientConf(ParseConf):
     '''client configuration'''
     #def getListenAddr(self):
@@ -173,13 +165,10 @@ def main(args):
             raise ConnectError('Invalid Server Reply')
         p = int(content.split(';')[2].split(':')[1])
         s = content.split(';')[3]
-        #send xmpp message
-        myip = getIpAddress('wlan0')
-        cnx.send(xmpp.Message(serverUser, 'Ack;InL;%s:%d;%s' % (myip, common.DEF_INLAN_PORT,s)))
+
         # send client hi (udp)
         address = ('', common.DEF_INLAN_PORT)
         toSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
         toSock.bind(address)
         toSock.setblocking(True)
         print ip, ':',p

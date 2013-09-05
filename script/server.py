@@ -252,19 +252,6 @@ class WorkerThread(Thread):
                     #self.toSock.sendto(d, self.toAddr)
                     self.pubQueue.put(d)
 
-
-            #if self.toSock in rs:
-            #    # toSock is ready for read
-            #    while True:
-            #        try:
-            #            (d, _) = self.toSock.recvfrom(2048)
-            #        except socket.error, e:
-            #            if e[0] != errno.EAGAIN and e[0] != 10035:
-            #                raise e
-            #            # EAGAIN
-            #            break
-            #        self.fromSock.sendto(d, self.srcAddr)
-
             # for each message
             while True:
                 try:
@@ -333,12 +320,10 @@ class WorkerThread(Thread):
         while time.time() - ct < common.TIMEOUT:
             try:
                 (data, fro) = sock.recvfrom(2048)
-                print '?????'
             except socket.timeout:
                 continue
             # got some data
             if data == 'Hi;%s' % self.sessKey:
-                print '!!!!!!!!!!!!!!!!!'
                 sock.setblocking(True)
                 sock.sendto('Welcome;%s' % self.sessKey, fro)
                 self.srcAddr = fro
@@ -733,15 +718,6 @@ def processInputMessages(sc, ms, ss, stunServerAddr):
                 (mu, iq, _, _, _) = ss[k]
                 if mu == u:
                     iq.put(c)
-        elif re.match(r'^Ack;InL;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};[a-z]{%d}$' \
-                      % common.SESSION_ID_LENGTH, c):
-            # Ack;InL
-            k = c.split(';')[3]
-            if k in ss.keys():
-                (mu, iq, _, _, _) = ss[k]
-                if mu == u:
-                    iq.put(c)
-
             
         
 
