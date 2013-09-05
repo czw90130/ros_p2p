@@ -178,6 +178,7 @@ def main(args):
         cnx.send(xmpp.Message(serverUser, 'Ack;InL;%s:%d;%s' % (myip, common.DEF_INLAN_PORT,s)))
         # send client hi (udp)
         toSock.setblocking(True)
+        print ip, ':',p
         toSock.sendto('Hi;%s' % s, (ip, p))
         # wait for server's 'Welcome' (udp)
         toSock.settimeout(1)
