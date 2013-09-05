@@ -159,8 +159,10 @@ class WorkerThread(Thread):
     def establish(self):
         # have server and client got the same mapped ip?
         if self.myIP == self.srcAddr[0]:
-            self.cannotEstablish('Two peers are in the same LAN')
-            raise EstablishError('Two peers are in the same LAN')
+            #self.cannotEstablish('Two peers are in the same LAN')
+            #raise EstablishError('Two peers are in the same LAN')
+            self.establishInL((socket.gethostbyname(socket.gethostname()), common.DEF_INLAN_PORT), self.fromSock)
+            
         # opened or fullcone nat?
         elif self.myNetType == NET_TYPE_OPENED \
              or self.myNetType == NET_TYPE_FULLCONE_NAT:
@@ -284,6 +286,41 @@ class WorkerThread(Thread):
 
     def cannotEstablish(self, reason):
         self.sendXmppMessage('Cannot;%s;%s' % (reason, self.sessKey))
+
+    def establishInL(self, addr, sock):
+        print 'establishInL()'
+        self.sendXmppMessage('Do;InL;%s:%d;%s' % (addr[0], addr[1], self.sessKey))
+        # wait for client's Ack
+        ct = time.time()
+        while time.time() - ct < common.TIMEOUT:
+            m = self.waitXmppMessage()
+            if not m:
+                continue
+            # got message
+            if re.match(r'^Ack;InL;%s$' % self.sessKey, m):
+                break
+        else:
+            # timeout
+            raise EstablishError('Timeout')
+        # set new srcAddr
+        print '!!!!!!!!!!!!!!!!!!!!!!!1'
+        # wait for udp packet
+        sock.settimeout(1)
+        ct = time.time()
+        while time.time() - ct < common.TIMEOUT:
+            try:
+                (data, fro) = sock.recvfrom(2048)
+            except socket.timeout:
+                continue
+            # got some data
+            if data == 'Hi;%s' % self.sessKey:
+                sock.setblocking(True)
+                sock.sendto('Welcome;%s' % self.sessKey, fro)
+                self.srcAddr = fro
+                return
+        else:
+            # timeout
+            raise EstablishError('Timeout')
 
     def establishIA(self, addr, sock):
         print 'establishIA()'
@@ -629,7 +666,7 @@ def processInputMessages(sc, ms, ss, stunServerAddr):
             continue
         # process content 
         print 'Input xmpp message:', c
-        if re.match(r'^Hello;\d+;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}$', c):
+        if re.match(r'^Hello;\d+;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};$', c):
             # client hello
             iq = Queue.Queue()
             oq = Queue.Queue()
@@ -671,6 +708,17 @@ def processInputMessages(sc, ms, ss, stunServerAddr):
                 (mu, iq, _, _, _) = ss[k]
                 if mu == u:
                     iq.put(c)
+        elif re.match(r'^Ack;InL;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};[a-z]{%d}$' \
+                      % common.SESSION_ID_LENGTH, c):
+            # Ack;InL
+            k = c.split(';')[3]
+            if k in ss.keys():
+                (mu, iq, _, _, _) = ss[k]
+                if mu == u:
+                    iq.put(c)
+
+            
+        
 
 def processOutputMessage(cnx, ss):
     # for each session

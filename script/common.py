@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 # constant
+DEF_INLAN_PORT      = 1990
 LOCAL_RANGE         = 100
 SESSION_ID_LENGTH   = 20
 TIMEOUT             = 30

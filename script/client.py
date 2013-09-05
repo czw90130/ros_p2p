@@ -153,6 +153,38 @@ def main(args):
     if re.match(r'^Cannot;[a-zA-Z0-9_\ \t]+;[a-z]{%d}$' % common.SESSION_ID_LENGTH, content):
         # Cannot
         raise ConnectError(content.split(';')[1])
+    elif re.match(r'^Do;InL;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};[a-z]{%d}$' \
+                  % common.SESSION_ID_LENGTH, content):
+        #In same LAN
+        cnx.send(xmpp.Message(serverUser, 'Ack;Inl;%s:%d;%s' % (socket.gethostbyname(socket.gethostname()), common.DEF_INLAN_PORT,s)))
+        # parse server reply
+        ip = content.split(';')[2].split(':')[0]
+        try:
+            socket.inet_aton(ip)
+        except socket.error:
+            # invalid ip
+            raise ConnectError('Invalid Server Reply')
+        p = int(content.split(';')[2].split(':')[1])
+        s = content.split(';')[3]
+        # send client hi (udp)
+        toSock.setblocking(True)
+        toSock.sendto('Hi;%s' % s, (ip, p))
+        # wait for server's 'Welcome' (udp)
+        toSock.settimeout(1)
+        ct = time.time()
+        while time.time() - ct < common.TIMEOUT:
+            try:
+                (data, fro) = toSock.recvfrom(2048)
+            except socket.timeout:
+                continue
+            # got some data
+            if fro == (ip, p) and data == 'Welcome;%s' % s:
+                # connection established
+                serverAddr = fro
+                break
+        else:
+            raise ConnectError('Timeout')
+
     elif re.match(r'^Do;IA;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};[a-z]{%d}$' \
                   % common.SESSION_ID_LENGTH, content):
         # IA, prepare to connect server
