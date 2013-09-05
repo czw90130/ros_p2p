@@ -308,7 +308,7 @@ class WorkerThread(Thread):
             if not m:
                 continue
             # got message
-            print m
+            print '!!!!!!!!!', m
             if re.match(r'^Ack;InL;%s$' % self.sessKey, m):
                 break
         else:

@@ -4,7 +4,7 @@ import roslib; roslib.load_manifest('ros_p2p')
 import rospy
 from std_msgs.msg import String
 
-import random, re, socket, Queue, time, select, getpass, sys, errno
+import random, re, socket, Queue, time, select, getpass, sys, errno, fcntl, struct
 from threading import Thread
 
 import xmpp
