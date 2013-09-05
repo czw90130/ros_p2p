@@ -326,7 +326,7 @@ class WorkerThread(Thread):
         #print ip, ': ', p
         
         # wait for udp packet
-        address = ('', common.SESSION_ID_LENGTH)
+        address = ('', common.DEF_INLAN_PORT)
         sock.bind(address)
         sock.settimeout(1)
         ct = time.time()
