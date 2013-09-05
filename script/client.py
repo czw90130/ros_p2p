@@ -133,7 +133,7 @@ def main(args):
 
     # send client hello
     cnx = xmppListen(gtalkServerAddr, user, passwd)
-    cnx.send(xmpp.Message(serverUser, 'Hello;%d;%s:%d' % (netType, mappedIP, mappedPort)))
+    cnx.send(xmpp.Message(serverUser, 'Hello;%d;%s:%d;' % (netType, mappedIP, mappedPort)))
     # wait for reply
     ct = time.time()
     content = None
@@ -156,7 +156,6 @@ def main(args):
     elif re.match(r'^Do;InL;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};[a-z]{%d}$' \
                   % common.SESSION_ID_LENGTH, content):
         #In same LAN
-        cnx.send(xmpp.Message(serverUser, 'Ack;Inl;%s:%d;%s' % (socket.gethostbyname(socket.gethostname()), common.DEF_INLAN_PORT,s)))
         # parse server reply
         ip = content.split(';')[2].split(':')[0]
         try:
@@ -166,6 +165,8 @@ def main(args):
             raise ConnectError('Invalid Server Reply')
         p = int(content.split(';')[2].split(':')[1])
         s = content.split(';')[3]
+        #send xmpp message
+        cnx.send(xmpp.Message(serverUser, 'Ack;Inl;%s:%d;%s' % (socket.gethostbyname(socket.gethostname()), common.DEF_INLAN_PORT,s)))
         # send client hi (udp)
         toSock.setblocking(True)
         toSock.sendto('Hi;%s' % s, (ip, p))

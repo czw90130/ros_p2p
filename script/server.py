@@ -161,6 +161,7 @@ class WorkerThread(Thread):
         if self.myIP == self.srcAddr[0]:
             #self.cannotEstablish('Two peers are in the same LAN')
             #raise EstablishError('Two peers are in the same LAN')
+            print '111111111111'
             self.establishInL((socket.gethostbyname(socket.gethostname()), common.DEF_INLAN_PORT), self.fromSock)
             
         # opened or fullcone nat?
@@ -290,6 +291,7 @@ class WorkerThread(Thread):
     def establishInL(self, addr, sock):
         print 'establishInL()'
         self.sendXmppMessage('Do;InL;%s:%d;%s' % (addr[0], addr[1], self.sessKey))
+        
         # wait for client's Ack
         ct = time.time()
         while time.time() - ct < common.TIMEOUT:
@@ -297,13 +299,14 @@ class WorkerThread(Thread):
             if not m:
                 continue
             # got message
+            print m
             if re.match(r'^Ack;InL;%s$' % self.sessKey, m):
                 break
         else:
             # timeout
             raise EstablishError('Timeout')
         # set new srcAddr
-        print '!!!!!!!!!!!!!!!!!!!!!!!1'
+        
         # wait for udp packet
         sock.settimeout(1)
         ct = time.time()
