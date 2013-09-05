@@ -175,7 +175,7 @@ def main(args):
         s = content.split(';')[3]
         #send xmpp message
         ip = getIpAddress('wlan0')
-        cnx.send(xmpp.Message(serverUser, 'Ack;Inl;%s:%d;%s' % (ip, common.DEF_INLAN_PORT,s)))
+        cnx.send(xmpp.Message(serverUser, 'Ack;InL;%s:%d;%s' % (ip, common.DEF_INLAN_PORT,s)))
         # send client hi (udp)
         toSock.setblocking(True)
         toSock.sendto('Hi;%s' % s, (ip, p))

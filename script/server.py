@@ -313,7 +313,7 @@ class WorkerThread(Thread):
                 break
         else:
             # timeout
-            raise EstablishError('Timeout')
+            raise EstablishError('Timeout Inl')
         # set new srcAddr
         
         # wait for udp packet
@@ -723,6 +723,7 @@ def processInputMessages(sc, ms, ss, stunServerAddr):
         elif re.match(r'^Ack;InL;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};[a-z]{%d}$' \
                       % common.SESSION_ID_LENGTH, c):
             # Ack;InL
+            print '!!!!!!!!!!!!!!!!!!!!!!!'
             k = c.split(';')[3]
             if k in ss.keys():
                 (mu, iq, _, _, _) = ss[k]
