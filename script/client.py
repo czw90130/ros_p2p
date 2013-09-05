@@ -87,9 +87,11 @@ class ConnectError(Exception):
         return '<Connect Error: %s>' % self.reason
 
 def sub_callback(data):
+    global sub_message
     sub_message = str(data)
 
 def main(args):
+    global sub_message
     #listenAddr = None
     serverAddr = None
     fromAddr = None
@@ -113,10 +115,6 @@ def main(args):
         return
     
     # create listened socket 
-    #listenSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
-    #listenSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #listenAddr = clientConf.getListenAddr()
-    #listenSock.bind(listenAddr)
 
     # create socket and get mapped address
     toSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
@@ -169,9 +167,9 @@ def main(args):
         # send client hi (udp)
         address = ('', common.DEF_INLAN_PORT)
         toSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
         toSock.bind(address)
         toSock.setblocking(True)
-        print ip, ':',p
         toSock.sendto('Hi;%s' % s, (ip, p))
         # wait for server's 'Welcome' (udp)
         toSock.settimeout(1)
@@ -550,18 +548,7 @@ def main(args):
             # error
             print 'Transfer error.'
             return
-        #if listenSock in rs:
-        #    #print 'listenSock has got some data:', 
-        #    # listenSock is ready for read
-        #    while True:
-        #        try:
-        #            (d, fromAddr) = listenSock.recvfrom(2048)
-        #            #print d
-        #        except socket.error, e:
-        #            if e[0] != errno.EAGAIN and e[0] != 10035:
-        #                raise e
-        #            # EAGAIN
-        #            break
+
         if pre_sub_message != sub_message:
             toSock.sendto(sub_message, serverAddr)
         if toSock in rs:

@@ -252,19 +252,6 @@ class WorkerThread(Thread):
                     #self.toSock.sendto(d, self.toAddr)
                     self.pubQueue.put(d)
 
-
-            #if self.toSock in rs:
-            #    # toSock is ready for read
-            #    while True:
-            #        try:
-            #            (d, _) = self.toSock.recvfrom(2048)
-            #        except socket.error, e:
-            #            if e[0] != errno.EAGAIN and e[0] != 10035:
-            #                raise e
-            #            # EAGAIN
-            #            break
-            #        self.fromSock.sendto(d, self.srcAddr)
-
             # for each message
             while True:
                 try:
