@@ -308,14 +308,21 @@ class WorkerThread(Thread):
             if not m:
                 continue
             # got message
-            print '!!!!!!!!!', m
-            if re.match(r'^Ack;InL;%s$' % self.sessKey, m):
+            if re.match(r'^Ack;InL;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};[a-z]{%d}$' % common.SESSION_ID_LENGTH, m):
                 break
         else:
             # timeout
             raise EstablishError('Timeout Inl')
         # set new srcAddr
+        ip = m.split(';')[2].split(':')[0]
+        p = int(m.split(';')[2].split(':')[1])
+        try:
+            socket.inet_aton(ip)
+        except socket.error:
+            # invalid ip
+            raise ConnectError('Invalid Client Reply')
         
+        print ip, ': ', p
         # wait for udp packet
         sock.settimeout(1)
         ct = time.time()
@@ -723,7 +730,6 @@ def processInputMessages(sc, ms, ss, stunServerAddr):
         elif re.match(r'^Ack;InL;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5};[a-z]{%d}$' \
                       % common.SESSION_ID_LENGTH, c):
             # Ack;InL
-            print '!!!!!!!!!!!!!!!!!!!!!!!'
             k = c.split(';')[3]
             if k in ss.keys():
                 (mu, iq, _, _, _) = ss[k]
