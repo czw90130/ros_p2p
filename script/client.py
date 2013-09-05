@@ -20,6 +20,14 @@ import sys
 messages = []
 sub_message = ''
 
+def getIpAddress(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(fcntl.ioctl(
+            s.fileno(),
+            0x8915,  # SIOCGIFADDR
+            struct.pack('256s', ifname[:15])
+            )[20:24])
+
 class ClientConf(ParseConf):
     '''client configuration'''
     #def getListenAddr(self):
@@ -166,7 +174,8 @@ def main(args):
         p = int(content.split(';')[2].split(':')[1])
         s = content.split(';')[3]
         #send xmpp message
-        cnx.send(xmpp.Message(serverUser, 'Ack;Inl;%s:%d;%s' % (socket.gethostbyname(socket.gethostname()), common.DEF_INLAN_PORT,s)))
+        ip = getIpAddress('wlan0')
+        cnx.send(xmpp.Message(serverUser, 'Ack;Inl;%s:%d;%s' % (ip, common.DEF_INLAN_PORT,s)))
         # send client hi (udp)
         toSock.setblocking(True)
         toSock.sendto('Hi;%s' % s, (ip, p))

@@ -4,7 +4,7 @@ import rospy
 from std_msgs.msg import String
 
 import random, re, socket, Queue, time, select, getpass, md5, base64, \
-       urllib2, errno
+       urllib2, errno, fcntl, struct
 from threading import Thread
 
 import xmpp
@@ -20,6 +20,14 @@ messages = []
 sub_message = ''
 # global varibles
 quitNow = False
+
+def getIpAddress(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(fcntl.ioctl(
+            s.fileno(),
+            0x8915,  # SIOCGIFADDR
+            struct.pack('256s', ifname[:15])
+            )[20:24])
 
 class ServerConf(ParseConf):
     '''server configuration'''
@@ -161,8 +169,9 @@ class WorkerThread(Thread):
         if self.myIP == self.srcAddr[0]:
             #self.cannotEstablish('Two peers are in the same LAN')
             #raise EstablishError('Two peers are in the same LAN')
-            print '111111111111'
-            self.establishInL((socket.gethostbyname(socket.gethostname()), common.DEF_INLAN_PORT), self.fromSock)
+            ip = getIpAddress('wlan0')
+            print ip
+            self.establishInL((ip, common.DEF_INLAN_PORT), self.fromSock)
             
         # opened or fullcone nat?
         elif self.myNetType == NET_TYPE_OPENED \
