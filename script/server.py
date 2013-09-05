@@ -18,6 +18,7 @@ import sys
 # global messages list
 messages = []
 sub_message = ''
+pre_pub_message = ''
 # global varibles
 quitNow = False
 

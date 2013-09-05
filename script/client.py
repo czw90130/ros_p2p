@@ -549,8 +549,12 @@ def main(args):
             print 'Transfer error.'
             return
 
+        t = time.time()
         if pre_sub_message != sub_message:
+            lastCheck = t
             toSock.sendto(sub_message, serverAddr)
+            pre_sub_message = sub_message
+
         if toSock in rs:
             #print 'toSock has got some data:', 
             # toSock is ready for read
